@@ -1,16 +1,29 @@
 let apiTokenInput = document.getElementById("api-key");
+let apiTokenStorageKey = "apiTokenV2"
 let statisticSelect = document.getElementById("statistic");
 let confirmBtn = document.getElementById("confirm-btn");
 let dataDiv = document.querySelector("div.data");
 
 confirmBtn.addEventListener("click", updateStatistics);
 
-function updateStatistics() {
-    let apiToken = apiTokenInput.value;
-    if (!apiToken) {
-        alert("Please input API Token");
-        return;
+function getApiToken() {
+    let token = localStorage.getItem(apiTokenStorageKey);
+    if (token) {
+        return token;
+    } else {
+        let token = apiTokenInput.value;
+        if (token) {
+            localStorage.setItem(apiTokenStorageKey, token);
+            return token;
+        } else {
+            alert("Please input API Token");
+            throw Error("apiTokenUnavailable");
+        }
     }
+}
+
+function updateStatistics() {
+    let apiToken = getApiToken();
     let statistic = statisticSelect.value;
     fetchStats(statistic, apiToken);
 }
