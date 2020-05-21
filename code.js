@@ -23,7 +23,11 @@ function getApiToken() {
 }
 
 function updateStatistics() {
-    let apiToken = getApiToken();
+    try {
+        var apiToken = getApiToken();
+    } catch (e) {
+        return;
+    }
     let statistic = statisticSelect.value;
     fetchStats(statistic, apiToken);
 }
