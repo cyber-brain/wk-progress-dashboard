@@ -37,10 +37,7 @@ function fetchStats(statistic, apiToken) {
         // createLevelUpTable(apiToken);
         try {
             loadLevelData(apiToken).then(
-                data => {
-                    createLevelUpChart(data)
-                    console.log(data)
-                }
+                data => {createLevelUpChart(data)}
             )
         } catch (error) {
             debugger;
@@ -79,13 +76,14 @@ function createLevelUpChart(data) {
     const svgMargin = {top:20, right:20, left:20, bottom:20};
 
     let values = data.map(d => d.unlockedToPassed).slice(0, data.length - 1)
+    let levels = data.map(d => d.level).slice(0, data.length - 1)
     y = d3
         .scaleLinear()
         .domain([0, d3.max(values)])
         .range([svgH - svgMargin.bottom, svgMargin.top])
     x = d3
         .scaleBand()
-        .domain(d3.range(values.length))
+        .domain(levels)
         .rangeRound([svgMargin.left, svgW - svgMargin.right])
         .padding(0.1)
 
@@ -99,7 +97,7 @@ function createLevelUpChart(data) {
         .selectAll("rect")
         .data(values)
         .join("rect")
-        .attr("transform", (d, i) => `translate(${x(i)})`)
+        .attr("transform", (d, i) => `translate(${x(levels[i])})`)
         .attr("height", (d, i) => y(0) - y(d))
         .attr("width", x.bandwidth())
         .attr("y", (d, i) => y(d))
