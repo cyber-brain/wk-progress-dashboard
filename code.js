@@ -34,9 +34,20 @@ function updateStatistics() {
 
 function fetchStats(statistic, apiToken) {
     if (statistic === "level-ups") {
-        createLevelUpTable(apiToken);
+        // createLevelUpTable(apiToken);
+        try {
+            loadLevelData(apiToken).then(
+                data => {
+                    createLevelUpChart(data)
+                    console.log(data)
+                }
+            )
+        } catch (error) {
+            debugger;
+        }
+
     } else if (statistic === "review-accuracy") {
-        alert("getting review-accuracy");
+        alert("this statistic is not implemented");
     } else {
         alert("this statistic is not implemented");
     }
@@ -51,6 +62,58 @@ async function queryWkAPI(endpoint, apiToken) {
         }
     );
     return fetch(apiReq).then(resp => resp.json());
+}
+
+function preProcessData(data) {
+    return data.map(d => ({
+        ...d,
+        unlockedToPassed: (d.passed_at - d.unlocked_at) / (1000 * 3600 * 24),
+        startedToPassed: (d.passed_at - d.started_at) / (1000 * 3600 * 24)
+      }))
+}
+
+function createLevelUpChart(data) {
+    data = preProcessData(data);
+    const svgH = 480;
+    const svgW = 920;
+    const svgMargin = {top:20, right:20, left:20, bottom:20};
+
+    let values = data.map(d => d.unlockedToPassed).slice(0, data.length - 1)
+    y = d3
+        .scaleLinear()
+        .domain([0, d3.max(values)])
+        .range([svgH - svgMargin.bottom, svgMargin.top])
+    x = d3
+        .scaleBand()
+        .domain(d3.range(values.length))
+        .rangeRound([svgMargin.left, svgW - svgMargin.right])
+        .padding(0.1)
+
+    const svg = d3.select("div.data")
+        .append("svg")
+            .attr("width", svgW)
+            .attr("height", svgH)
+            .style("background-color", "papayawhip");
+
+    svg
+        .selectAll("rect")
+        .data(values)
+        .join("rect")
+        .attr("transform", (d, i) => `translate(${x(i)})`)
+        .attr("height", (d, i) => y(0) - y(d))
+        .attr("width", x.bandwidth())
+        .attr("y", (d, i) => y(d))
+        .attr("fill", "coral");
+
+    svg
+        .append("g")
+        .attr("transform", `translate(${svgMargin.left},0)`)
+        .call(d3.axisLeft(y));
+
+    svg
+        .append("g")
+        .attr("transform", `translate(0, ${y(0)})`)
+        .call(d3.axisBottom(x));
 }
 
 async function createLevelUpTable(apiToken) {
@@ -120,4 +183,36 @@ function createTableRow(values) {
         tr.appendChild(td);
     }
     return tr
+}
+
+
+async function getWkItems(endpoint, apiToken) {
+    let reqOpts = {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${apiToken}` }
+    };
+    let resuts = new Array();
+
+    let nextUrl = `https://api.wanikani.com/v2/${endpoint}`;
+    while (nextUrl) {
+        let resp = await fetch(nextUrl, reqOpts);
+        if (resp.ok) {
+        let body = await resp.json();
+        nextUrl = body.pages.next_url;
+        resuts.push(...body.data);
+        } else {
+        throw Error(`${resp.status}: ${resp.statusText}`);
+        }
+    }
+    return resuts;
+}
+
+async function loadLevelData(apiToken) {
+    const data = await getWkItems("level_progressions", apiToken);
+    return data.map(d => ({
+        level: d.data.level,
+        started_at: Date.parse(d.data.started_at),
+        passed_at: Date.parse(d.data.passed_at),
+        unlocked_at: Date.parse(d.data.unlocked_at)
+    }));
 }
